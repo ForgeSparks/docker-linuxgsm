@@ -1,24 +1,30 @@
-# LinuxGSM Base Docker Image
+# ForgeSparks custom LinuxGSM Docker Container
 
-## This is the base LinuxGSM image only.
-## Use <a href="https://github.com/GameServerManagers/docker-gameserver">docker-gameserver</a> for full game servers
+A custom implementation of dockerised version of LinuxGSM https://linuxgsm.com
 
-<p align="center">
-  <a href="https://linuxgsm.com"><img src="https://user-images.githubusercontent.com/4478206/197897104-bb718d2e-09a0-4f83-8e86-c829044750a9.jpg" alt="LinuxGSM"></a>
-<br>
-<a href="https://hub.docker.com/r/gameservermanagers/linuxgsm"><img src="https://img.shields.io/docker/pulls/gameservermanagers/linuxgsm.svg?style=flat-square&amp;logo=docker&amp;logoColor=white" alt="Docker Pulls"></a>
-<a href="https://github.com/GameServerManagers/docker-linuxgsm/actions"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/GameServerManagers/docker-linuxgsm/docker-publish.yml?style=flat-square"></a>
-<a href="https://www.codacy.com/gh/GameServerManagers/docker-linuxgsm/dashboard"><img src="https://img.shields.io/codacy/grade/42d400dcdd714ae080d77fcb40d00f1c?style=flat-square&logo=codacy&logoColor=white" alt="Codacy grade"></a>
-<a href="https://developer.valvesoftware.com/wiki/SteamCMD"><img src="https://img.shields.io/badge/SteamCMD-000000?style=flat-square&amp;logo=Steam&amp;logoColor=white" alt="SteamCMD"></a>
-<a href="https://github.com/GameServerManagers/docker-linuxgsm/blob/main/LICENSE"><img src="https://img.shields.io/github/license/gameservermanagers/docker-linuxgsm?style=flat-square" alt="MIT License"></a></p>
+## Usage
 
-## About
+### docker-compose
 
-LinuxGSM is a command-line tool for quick, simple deployment and management of Linux dedicated game servers. This container image builds weekly and is available on [Docker Hub](https://hub.docker.com/r/gameservermanagers/linuxgsm) as well as [GitHub Container Registry](https://github.com/GameServerManagers/docker-linuxgsm/pkgs/container/linuxgsm).
+Below is an example `docker-compose` for csgoserver. Ports will vary depending upon server.
 
-## Tags
-
-- `latest`, `ubuntu` - Latest Ubuntu LTS release
-- `ubuntu-24.04` - Ubuntu 24.04 LTS 'Noble Numbat'
-- `ubuntu-22.04` - Ubuntu 22.04 LTS 'Jammy Jackalope'
-- `ubuntu-20.04` - Ubuntu 20.04 LTS 'Focal Fossa'
+```docker
+services:
+  csgoserver:
+    image: d1ceward/docker-linuxgsm:latest
+    environment:
+      - GAMESERVER=jc2server
+      - LGSM_GITHUBUSER=GameServerManagers
+      - LGSM_GITHUBREPO=LinuxGSM
+      - LGSM_GITHUBBRANCH=develop
+    volumes:
+      - /path/to/serverfiles:/linuxgsm/serverfiles
+      - /path/to/log:/linuxgsm/log
+      - /path/to/config-lgsm:/linuxgsm/config-lgsm
+    ports:
+      - "27015:27015/tcp"
+      - "27015:27015/udp"
+      - "27020:27020/udp"
+      - "27005:27005/udp"
+    restart: unless-stopped
+```
