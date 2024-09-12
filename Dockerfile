@@ -1,12 +1,5 @@
-#
-# LinuxGSM Base Dockerfile
-#
-# https://github.com/GameServerManagers/docker-linuxgsm
-#
+FROM gameservermanagers/steamcmd:latest
 
-FROM gameservermanagers/steamcmd:ubuntu-24.04
-
-LABEL maintainer="LinuxGSM <me@danielgibbs.co.uk>"
 ENV DEBIAN_FRONTEND noninteractive
 ENV TERM=xterm
 ENV LGSM_GITHUBUSER=GameServerManagers
@@ -21,8 +14,8 @@ ENV GAMESERVER=jc2server
 ENV VALIDATE_ON_START=false
 ENV UPDATE_CHECK=60
 ENV USER=linuxgsm
-ENV UID=1001
-ENV GID=1001
+ENV UID=1000
+ENV GID=1000
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -52,8 +45,7 @@ RUN echo "**** Install Base LinuxGSM Requirements ****" \
   jq \
   lib32gcc-s1 \
   lib32stdc++6 \
-  netcat-openbsd \
-  pigz \
+  netcat \
   python3 \
   sudo \
   tar \
