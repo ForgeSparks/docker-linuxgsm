@@ -1,0 +1,14 @@
+---
+services:
+  gameserver:
+    image: d1ceward/docker-linuxgsm:latest
+    restart: unless-stopped
+    environment:
+      GAMESERVER: sfserver
+    volumes:
+      - data:/data
+    ports:
+      - 7777:7777/tcp
+      - 7777:7777/udp
+volumes:
+  data:
