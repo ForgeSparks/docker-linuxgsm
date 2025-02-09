@@ -1,6 +1,6 @@
-FROM gameservermanagers/steamcmd:latest
+FROM ghcr.io/gameservermanagers/steamcmd:ubuntu-24.04
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND noninteractive
 ENV TERM=xterm
 ENV LGSM_GITHUBUSER=GameServerManagers
 ENV LGSM_GITHUBREPO=LinuxGSM
