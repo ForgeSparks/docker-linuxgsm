@@ -1,5 +1,8 @@
 FROM ghcr.io/gameservermanagers/steamcmd:ubuntu-24.04
 
+## Remove ubuntu user added in 24.04 by default
+RUN touch /var/mail/ubuntu && chown ubuntu /var/mail/ubuntu && userdel -r ubuntu
+
 ENV DEBIAN_FRONTEND noninteractive
 ENV TERM=xterm
 ENV LGSM_GITHUBUSER=GameServerManagers
@@ -14,8 +17,8 @@ ENV GAMESERVER=jc2server
 ENV VALIDATE_ON_START=false
 ENV UPDATE_CHECK=60
 ENV USER=linuxgsm
-ENV UID=1001
-ENV GID=1001
+ENV UID=1000
+ENV GID=1000
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -128,6 +131,9 @@ RUN echo "$CACHEBUST"
 COPY entrypoint.sh /app/entrypoint.sh
 COPY entrypoint-user.sh /app/entrypoint-user.sh
 COPY entrypoint-healthcheck.sh /app/entrypoint-healthcheck.sh
+
+## Ensure entrypoint scripts have execute permissions
+RUN chmod +x /app/entrypoint.sh /app/entrypoint-user.sh /app/entrypoint-healthcheck.sh
 
 RUN date > /build-time.txt
 
