@@ -1,9 +1,11 @@
 FROM ghcr.io/gameservermanagers/steamcmd:ubuntu-24.04
 
-## Remove ubuntu user added in 24.04 by default
-RUN touch /var/mail/ubuntu && chown ubuntu /var/mail/ubuntu && userdel -r ubuntu
+USER root
 
-ENV DEBIAN_FRONTEND noninteractive
+## Remove steam user from upstream base image if present
+RUN if id -u steam >/dev/null 2>&1; then echo "Removing steam user from base image"; userdel -r steam || true; else echo "steam user not present"; fi
+
+ENV DEBIAN_FRONTEND=noninteractive
 ENV TERM=xterm
 ENV LGSM_GITHUBUSER=GameServerManagers
 ENV LGSM_GITHUBREPO=LinuxGSM
@@ -12,6 +14,7 @@ ENV LGSM_LOGDIR=/data/log
 ENV LGSM_SERVERFILES=/data/serverfiles
 ENV LGSM_DATADIR=/data/data
 ENV LGSM_CONFIG=/data/config-lgsm
+ENV LGSM_COMPRESSEDMAPSDIR=/data/Maps-Compressed
 ENV LGSM_DEV=false
 ENV GAMESERVER=jc2server
 ENV VALIDATE_ON_START=false
@@ -59,6 +62,7 @@ RUN echo "**** Install Base LinuxGSM Requirements ****" \
   uuid-runtime \
   wget \
   xz-utils \
+  zstd \
   # Docker Extras
   iproute2 \
   iputils-ping \
