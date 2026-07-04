@@ -1,0 +1,14 @@
+---
+services:
+  gameserver:
+    image: d1ceward/docker-linuxgsm:latest
+    restart: unless-stopped
+    environment:
+      GAMESERVER: vhserver
+    volumes:
+      - data:/data
+    ports:
+      - 2456:2456/udp # game port
+      - 2457:2457/udp # query port
+volumes:
+  data:

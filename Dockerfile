@@ -5,7 +5,6 @@ USER root
 ## Remove steam user from upstream base image if present
 RUN if id -u steam >/dev/null 2>&1; then echo "Removing steam user from base image"; userdel -r steam || true; else echo "steam user not present"; fi
 
-LABEL maintainer="LinuxGSM <me@danielgibbs.co.uk>"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TERM=xterm
 ENV LGSM_GITHUBUSER=GameServerManagers
@@ -136,6 +135,7 @@ RUN echo "$CACHEBUST"
 COPY entrypoint.sh /app/entrypoint.sh
 COPY entrypoint-user.sh /app/entrypoint-user.sh
 COPY entrypoint-healthcheck.sh /app/entrypoint-healthcheck.sh
+COPY deps.csv /app/deps.csv
 
 ## Ensure entrypoint scripts have execute permissions
 RUN chmod +x /app/entrypoint.sh /app/entrypoint-user.sh /app/entrypoint-healthcheck.sh
