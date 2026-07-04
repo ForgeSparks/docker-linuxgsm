@@ -1,7 +1,7 @@
 ---
 services:
   gameserver:
-    image: d1ceward/docker-linuxgsm:latest
+    image: ghcr.io/forgesparks/docker-linuxgsm:latest
     restart: unless-stopped
     environment:
       GAMESERVER: vhserver
