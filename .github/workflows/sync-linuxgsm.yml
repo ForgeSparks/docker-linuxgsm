@@ -1,0 +1,144 @@
+---
+name: Sync LinuxGSM
+on:
+  schedule:
+    # Run every day at 04:15 UTC
+    - cron: '15 4 * * *'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Upstream LinuxGSM branch to sync from'
+        required: false
+        default: 'master'
+      base:
+        description: 'Base branch for the pull request'
+        required: false
+        default: 'develop'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  UPSTREAM_REPO: GameServerManagers/LinuxGSM
+  UPSTREAM_BRANCH: ${{ github.event.inputs.branch || 'master' }}
+  PR_BASE_BRANCH: ${{ github.event.inputs.base || 'develop' }}
+  SHA_FILE: .linuxgsm-upstream.sha
+
+jobs:
+  sync:
+    name: Check upstream LinuxGSM
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.PR_BASE_BRANCH }}
+
+      - name: Read currently vendored upstream commit
+        id: current
+        run: |
+          if [ -f "${SHA_FILE}" ]; then
+            current_sha="$(tr -d '[:space:]' < "${SHA_FILE}")"
+          else
+            current_sha=""
+          fi
+          echo "sha=${current_sha}" >> "$GITHUB_OUTPUT"
+          echo "Current vendored SHA: ${current_sha:-<none>}"
+
+      - name: Resolve latest upstream commit
+        id: upstream
+        run: |
+          latest_sha="$(git ls-remote "https://github.com/${UPSTREAM_REPO}.git" "refs/heads/${UPSTREAM_BRANCH}" | awk '{print $1}')"
+          if [ -z "${latest_sha}" ]; then
+            echo "::error::Could not resolve upstream branch ${UPSTREAM_BRANCH}"
+            exit 1
+          fi
+          echo "sha=${latest_sha}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${latest_sha:0:7}" >> "$GITHUB_OUTPUT"
+          echo "Latest upstream SHA: ${latest_sha}"
+
+      - name: Compare SHAs
+        id: diff
+        run: |
+          if [ "${{ steps.current.outputs.sha }}" = "${{ steps.upstream.outputs.sha }}" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already up to date."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch upstream files
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          workdir="$(mktemp -d)"
+          git clone \
+            --depth 1 \
+            --branch "${UPSTREAM_BRANCH}" \
+            --filter=blob:none \
+            --sparse \
+            "https://github.com/${UPSTREAM_REPO}.git" \
+            "${workdir}"
+          (
+            cd "${workdir}"
+            git sparse-checkout set --cone
+            git sparse-checkout set lgsm/modules
+            git checkout "${UPSTREAM_BRANCH}"
+          )
+
+          # Replace vendored files
+          rm -rf lgsm/modules
+          mkdir -p lgsm/modules
+          cp -a "${workdir}/lgsm/modules/." lgsm/modules/
+          cp "${workdir}/linuxgsm.sh" ./linuxgsm.sh
+          chmod +x linuxgsm.sh
+          find lgsm/modules -type f \( -name '*.sh' -o -name '*.py' \) -exec chmod +x {} +
+
+          echo "${{ steps.upstream.outputs.sha }}" > "${SHA_FILE}"
+          rm -rf "${workdir}"
+
+      - name: Build PR body
+        if: steps.diff.outputs.changed == 'true'
+        id: body
+        run: |
+          old_sha='${{ steps.current.outputs.sha }}'
+          new_sha='${{ steps.upstream.outputs.sha }}'
+          {
+            echo 'body<<EOF'
+            echo "Automated update of vendored [LinuxGSM](https://github.com/${UPSTREAM_REPO}) files from branch \`${UPSTREAM_BRANCH}\`."
+            echo ''
+            if [ -n "${old_sha}" ]; then
+              echo "**Previous commit:** [\`${old_sha:0:7}\`](https://github.com/${UPSTREAM_REPO}/commit/${old_sha})"
+            else
+              echo "**Previous commit:** _none_"
+            fi
+            echo "**New commit:** [\`${new_sha:0:7}\`](https://github.com/${UPSTREAM_REPO}/commit/${new_sha})"
+            if [ -n "${old_sha}" ]; then
+              echo ""
+              echo "**Diff:** https://github.com/${UPSTREAM_REPO}/compare/${old_sha}...${new_sha}"
+            fi
+            echo ''
+            echo 'This PR was generated automatically by the `Sync LinuxGSM` workflow.'
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create pull request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/sync-linuxgsm-${{ steps.upstream.outputs.short_sha }}
+          base: ${{ env.PR_BASE_BRANCH }}
+          commit-message: |
+            chore: sync LinuxGSM vendored files to ${{ steps.upstream.outputs.short_sha }}
+          title: "chore: sync LinuxGSM vendored files to ${{ steps.upstream.outputs.short_sha }}"
+          body: ${{ steps.body.outputs.body }}
+          labels: |
+            type: dependencies
+          delete-branch: true
+          add-paths: |
+            linuxgsm.sh
+            lgsm/modules/**
+            .linuxgsm-upstream.sha

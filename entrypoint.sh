@@ -51,21 +51,6 @@ cd /app || exit
 cron
 
 echo -e ""
-echo -e "Auto install game server requirements"
-echo -e "================================="
-depshortname=$(awk -v shortname="${GAMESERVER%server}" -F, '$1==shortname {$1=""; sub(/^,/,""); gsub(/,/," "); print}' /app/deps.csv)
-if [ -n "${depshortname}" ]; then
-  echo -e "**** Install ${depshortname} ****"
-  apt-get update \
-    && apt-get install -y ${depshortname} \
-    && apt-get -y autoremove \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-else
-  echo -e "No extra dependencies for ${GAMESERVER}"
-fi
-
-echo -e ""
 echo -e "Check Permissions"
 echo -e "================================="
 echo -e "setting UID to ${UID}"

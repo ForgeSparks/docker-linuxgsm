@@ -110,23 +110,18 @@ RUN echo "**** Add linuxgsm user ****" \
 
 HEALTHCHECK --interval=1m --timeout=1m --start-period=2m --retries=1 CMD /app/entrypoint-healthcheck.sh || exit 1
 
-## Download linuxgsm.sh
-RUN echo "**** Download linuxgsm.sh ****" \
-  && set -ex \
-  && curl -Lo linuxgsm.sh "https://raw.githubusercontent.com/GameServerManagers/LinuxGSM/${LGSM_GITHUBBRANCH}/linuxgsm.sh" \
-  && chmod +x linuxgsm.sh
+## Copy vendored linuxgsm.sh (kept in sync with upstream via GitHub Actions)
+COPY linuxgsm.sh /app/linuxgsm.sh
 
-RUN echo "**** Get LinuxGSM Modules ****" \
-  && git clone --filter=blob:none --no-checkout --sparse https://github.com/GameServerManagers/LinuxGSM.git \
-  && cd LinuxGSM \
-  && git sparse-checkout set --cone \
-  && git sparse-checkout set lgsm/modules \
-  && git checkout ${LGSM_GITHUBBRANCH} \
-  && mkdir -p /app/lgsm/modules \
-  && mv lgsm/modules/* /app/lgsm/modules \
+## Copy vendored LinuxGSM modules (kept in sync with upstream via GitHub Actions)
+COPY lgsm/modules /app/lgsm/modules
+
+## Record vendored upstream commit SHA for traceability
+COPY .linuxgsm-upstream.sha /app/.linuxgsm-upstream.sha
+
+RUN echo "**** Install vendored LinuxGSM files ****" \
+  && chmod +x /app/linuxgsm.sh \
   && chmod +x /app/lgsm/modules/* \
-  && cd ../ \
-  && rm -rf LinuxGSM \
   && chown -R $USER:$USER /app
 
 ARG CACHEBUST=1
@@ -135,7 +130,6 @@ RUN echo "$CACHEBUST"
 COPY entrypoint.sh /app/entrypoint.sh
 COPY entrypoint-user.sh /app/entrypoint-user.sh
 COPY entrypoint-healthcheck.sh /app/entrypoint-healthcheck.sh
-COPY deps.csv /app/deps.csv
 
 ## Ensure entrypoint scripts have execute permissions
 RUN chmod +x /app/entrypoint.sh /app/entrypoint-user.sh /app/entrypoint-healthcheck.sh
