@@ -6,10 +6,10 @@ on:
     - cron: '15 4 * * *'
   workflow_dispatch:
     inputs:
-      branch:
-        description: 'Upstream LinuxGSM branch to sync from'
+      tag:
+        description: 'Upstream LinuxGSM release tag to sync from (leave empty for latest release)'
         required: false
-        default: 'master'
+        default: ''
       base:
         description: 'Base branch for the pull request'
         required: false
@@ -21,9 +21,10 @@ permissions:
 
 env:
   UPSTREAM_REPO: GameServerManagers/LinuxGSM
-  UPSTREAM_BRANCH: ${{ github.event.inputs.branch || 'master' }}
+  UPSTREAM_TAG: ${{ github.event.inputs.tag || '' }}
   PR_BASE_BRANCH: ${{ github.event.inputs.base || 'develop' }}
   SHA_FILE: .linuxgsm-upstream.sha
+  TAG_FILE: .linuxgsm-upstream.tag
 
 jobs:
   sync:
@@ -44,19 +45,44 @@ jobs:
           else
             current_sha=""
           fi
+          if [ -f "${TAG_FILE}" ]; then
+            current_tag="$(tr -d '[:space:]' < "${TAG_FILE}")"
+          else
+            current_tag=""
+          fi
           echo "sha=${current_sha}" >> "$GITHUB_OUTPUT"
+          echo "tag=${current_tag}" >> "$GITHUB_OUTPUT"
           echo "Current vendored SHA: ${current_sha:-<none>}"
+          echo "Current vendored tag: ${current_tag:-<none>}"
 
-      - name: Resolve latest upstream commit
+      - name: Resolve latest upstream release
         id: upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          latest_sha="$(git ls-remote "https://github.com/${UPSTREAM_REPO}.git" "refs/heads/${UPSTREAM_BRANCH}" | awk '{print $1}')"
-          if [ -z "${latest_sha}" ]; then
-            echo "::error::Could not resolve upstream branch ${UPSTREAM_BRANCH}"
+          set -euo pipefail
+          if [ -n "${UPSTREAM_TAG}" ]; then
+            latest_tag="${UPSTREAM_TAG}"
+          else
+            latest_tag="$(gh api "repos/${UPSTREAM_REPO}/releases/latest" --jq '.tag_name')"
+          fi
+          if [ -z "${latest_tag}" ]; then
+            echo "::error::Could not resolve upstream latest release tag"
             exit 1
           fi
+          latest_sha="$(git ls-remote "https://github.com/${UPSTREAM_REPO}.git" "refs/tags/${latest_tag}" | awk '{print $1}')"
+          if [ -z "${latest_sha}" ]; then
+            # Fall back to annotated-tag dereferenced ref
+            latest_sha="$(git ls-remote "https://github.com/${UPSTREAM_REPO}.git" "refs/tags/${latest_tag}^{}" | awk '{print $1}')"
+          fi
+          if [ -z "${latest_sha}" ]; then
+            echo "::error::Could not resolve commit SHA for tag ${latest_tag}"
+            exit 1
+          fi
+          echo "tag=${latest_tag}" >> "$GITHUB_OUTPUT"
           echo "sha=${latest_sha}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${latest_sha:0:7}" >> "$GITHUB_OUTPUT"
+          echo "Latest upstream tag: ${latest_tag}"
           echo "Latest upstream SHA: ${latest_sha}"
 
       - name: Compare SHAs
@@ -76,7 +102,7 @@ jobs:
           workdir="$(mktemp -d)"
           git clone \
             --depth 1 \
-            --branch "${UPSTREAM_BRANCH}" \
+            --branch "${{ steps.upstream.outputs.tag }}" \
             --filter=blob:none \
             --sparse \
             "https://github.com/${UPSTREAM_REPO}.git" \
@@ -85,7 +111,6 @@ jobs:
             cd "${workdir}"
             git sparse-checkout set --cone
             git sparse-checkout set lgsm/modules
-            git checkout "${UPSTREAM_BRANCH}"
           )
 
           # Replace vendored files
@@ -97,6 +122,7 @@ jobs:
           find lgsm/modules -type f \( -name '*.sh' -o -name '*.py' \) -exec chmod +x {} +
 
           echo "${{ steps.upstream.outputs.sha }}" > "${SHA_FILE}"
+          echo "${{ steps.upstream.outputs.tag }}" > "${TAG_FILE}"
           rm -rf "${workdir}"
 
       - name: Build PR body
@@ -105,16 +131,20 @@ jobs:
         run: |
           old_sha='${{ steps.current.outputs.sha }}'
           new_sha='${{ steps.upstream.outputs.sha }}'
+          old_tag='${{ steps.current.outputs.tag }}'
+          new_tag='${{ steps.upstream.outputs.tag }}'
           {
             echo 'body<<EOF'
-            echo "Automated update of vendored [LinuxGSM](https://github.com/${UPSTREAM_REPO}) files from branch \`${UPSTREAM_BRANCH}\`."
+            echo "Automated update of vendored [LinuxGSM](https://github.com/${UPSTREAM_REPO}) files from release [\`${new_tag}\`](https://github.com/${UPSTREAM_REPO}/releases/tag/${new_tag})."
             echo ''
-            if [ -n "${old_sha}" ]; then
+            if [ -n "${old_tag}" ]; then
+              echo "**Previous release:** [\`${old_tag}\`](https://github.com/${UPSTREAM_REPO}/releases/tag/${old_tag}) ([\`${old_sha:0:7}\`](https://github.com/${UPSTREAM_REPO}/commit/${old_sha}))"
+            elif [ -n "${old_sha}" ]; then
               echo "**Previous commit:** [\`${old_sha:0:7}\`](https://github.com/${UPSTREAM_REPO}/commit/${old_sha})"
             else
-              echo "**Previous commit:** _none_"
+              echo "**Previous release:** _none_"
             fi
-            echo "**New commit:** [\`${new_sha:0:7}\`](https://github.com/${UPSTREAM_REPO}/commit/${new_sha})"
+            echo "**New release:** [\`${new_tag}\`](https://github.com/${UPSTREAM_REPO}/releases/tag/${new_tag}) ([\`${new_sha:0:7}\`](https://github.com/${UPSTREAM_REPO}/commit/${new_sha}))"
             if [ -n "${old_sha}" ]; then
               echo ""
               echo "**Diff:** https://github.com/${UPSTREAM_REPO}/compare/${old_sha}...${new_sha}"
@@ -129,11 +159,11 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: chore/sync-linuxgsm-${{ steps.upstream.outputs.short_sha }}
+          branch: chore/sync-linuxgsm-${{ steps.upstream.outputs.tag }}
           base: ${{ env.PR_BASE_BRANCH }}
           commit-message: |
-            chore: sync LinuxGSM vendored files to ${{ steps.upstream.outputs.short_sha }}
-          title: "chore: sync LinuxGSM vendored files to ${{ steps.upstream.outputs.short_sha }}"
+            chore: sync LinuxGSM vendored files to ${{ steps.upstream.outputs.tag }}
+          title: "chore: sync LinuxGSM vendored files to ${{ steps.upstream.outputs.tag }}"
           body: ${{ steps.body.outputs.body }}
           labels: |
             type: dependencies
@@ -142,3 +172,4 @@ jobs:
             linuxgsm.sh
             lgsm/modules/**
             .linuxgsm-upstream.sha
+            .linuxgsm-upstream.tag
