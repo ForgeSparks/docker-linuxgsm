@@ -88,7 +88,7 @@ RUN echo "**** Install Node.js ****" \
   && rm -rf /var/lib/apt/lists/* \
   && rm -rf /tmp/* \
   && rm -rf /var/tmp/* \
-  && npm install -g npm@latest
+  && npm install -g npm@10.8.2
 
 # Install GameDig https://docs.linuxgsm.com/requirements/gamedig
 RUN echo "**** Install GameDig ****" \
