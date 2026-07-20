@@ -1,42 +1,25 @@
 #!/bin/bash
-# LinuxGSM command_xnt.sh module
+# LinuxGSM update_bb.sh module
 # Author: Daniel Gibbs
 # Contributors: https://linuxgsm.com/contrib
 # Website: https://linuxgsm.com
-# Description: Handles updating of Xontic servers.
+# Description: Handles updating of BrainBread servers.
 
 moduleselfname="$(basename "$(readlink -f "${BASH_SOURCE[0]}")")"
 
 fn_update_dl() {
 	# Download and extract files to serverfiles.
 	fn_fetch_file "${remotebuildurl}" "" "" "" "${tmpdir}" "${remotebuildfilename}" "nochmodx" "norun" "force" "${remotebuildhash}"
-	fn_dl_extract "${tmpdir}" "${remotebuildfilename}" "${serverfiles}" "Xonotic"
+	fn_dl_extract "${tmpdir}" "${remotebuildfilename}" "${serverfiles}"
+	echo "${remotebuild}" > "${serverfiles}/build.txt"
 	fn_clear_tmp
 }
 
 fn_update_localbuild() {
 	# Gets local build info.
 	fn_print_dots "Checking local build: ${remotelocation}"
-	check_status.sh
-	# Send version command to Xonotic server.
-	if [ "${status}" != "0" ]; then
-		TERM=screen tmux -L "${socketname}" send-keys -t "${sessionname}" "version" C-m > /dev/null 2>&1
-		fn_sleep_time_1
-	else
-		exitbypass=1
-		command_start.sh
-		fn_firstcommand_reset
-		exitbypass=1
-		fn_sleep_time_5
-		TERM=screen tmux -L "${socketname}" send-keys -t "${sessionname}" "version" C-m > /dev/null 2>&1
-		exitbypass=1
-		command_stop.sh
-		unset exitbypass
-		fn_firstcommand_reset
-	fi
-
-	# Uses log file to get local build.
-	localbuild=$(grep "SVQC version: xonotic-v" "${consolelogdir}"/* 2> /dev/null | tail -1 | sed 's/.*SVQC version: \(xonotic-v[0-9.]*\).*/\1/' | tr -d '\000-\011\013-\037')
+	# Uses build file to get local build.
+	localbuild=$(head -n 1 "${serverfiles}/build.txt" 2> /dev/null)
 	if [ -z "${localbuild}" ]; then
 		fn_print_error "Checking local build: ${remotelocation}: missing local build info"
 		fn_script_log_error "Missing local build info"
@@ -50,19 +33,20 @@ fn_update_localbuild() {
 
 fn_update_remotebuild() {
 	# Gets remote build info.
-	apiurl="https://api.github.com/repos/xonotic/xonotic/tags"
+	apiurl="https://api.github.com/repos/IronOak-Studios/BrainBread/releases/latest"
 	remotebuildresponse=$(curl -s "${apiurl}")
-	remotebuildtag=$(echo "${remotebuildresponse}" | jq -r '.[0].name')
-	remotebuildfilename=$(echo "${remotebuildtag}" | tr -d 'v')
-	remotebuildfilename="${remotebuildfilename}.zip"
-	remotebuildurl="https://dl.xonotic.org/${remotebuildfilename}"
-	remotebuild="${remotebuildtag}"
-	remotebuildhash=$(curl -s "https://dl.xonotic.org/${remotebuildfilename%.zip}.sha512" | grep "${remotebuildfilename}$" | grep -oE '[a-f0-9]{128}')
+	remotebuildfilename=$(echo "${remotebuildresponse}" | jq -r '.assets[] | select(.name | test("linuxserver\\.tar\\.gz$")) | .name' | head -n 1)
+	remotebuildurl=$(echo "${remotebuildresponse}" | jq -r '.assets[] | select(.name | test("linuxserver\\.tar\\.gz$")) | .browser_download_url' | head -n 1)
+	remotebuildhash=$(echo "${remotebuildresponse}" | jq -r '.assets[] | select(.name | test("linuxserver\\.tar\\.gz$")) | .digest' | sed 's/^sha256://g' | head -n 1)
+	remotebuild=$(echo "${remotebuildresponse}" | jq -r '.tag_name')
+	if [ -z "${remotebuildhash}" ] || [ "${remotebuildhash}" == "null" ]; then
+		remotebuildhash="nohash"
+	fi
 
 	if [ "${firstcommandname}" != "INSTALL" ]; then
 		fn_print_dots "Checking remote build: ${remotelocation}"
 		# Checks if remotebuild variable has been set.
-		if [ -z "${remotebuild}" ] || [ "${remotebuild}" == "null" ]; then
+		if [ -z "${remotebuild}" ] || [ "${remotebuild}" == "null" ] || [ -z "${remotebuildurl}" ] || [ "${remotebuildurl}" == "null" ] || [ -z "${remotebuildfilename}" ] || [ "${remotebuildfilename}" == "null" ]; then
 			fn_print_fail "Checking remote build: ${remotelocation}"
 			fn_script_log_fail "Checking remote build"
 			core_exit.sh
@@ -72,7 +56,7 @@ fn_update_remotebuild() {
 		fi
 	else
 		# Checks if remotebuild variable has been set.
-		if [ -z "${remotebuild}" ] || [ "${remotebuild}" == "null" ]; then
+		if [ -z "${remotebuild}" ] || [ "${remotebuild}" == "null" ] || [ -z "${remotebuildurl}" ] || [ "${remotebuildurl}" == "null" ] || [ -z "${remotebuildfilename}" ] || [ "${remotebuildfilename}" == "null" ]; then
 			fn_print_failure "Unable to get remote build"
 			fn_script_log_fail "Unable to get remote build"
 			core_exit.sh
@@ -99,6 +83,7 @@ fn_update_compare() {
 			fn_print_nl "* apiurl: ${apiurl}"
 			fn_print_nl "* remotebuildfilename: ${remotebuildfilename}"
 			fn_print_nl "* remotebuildurl: ${remotebuildurl}"
+			fn_print_nl "* remotebuildhash: ${remotebuildhash}"
 			fn_print_nl "* remotebuild: ${remotebuild}"
 		fi
 		fn_print "\n"
@@ -165,6 +150,7 @@ fn_update_compare() {
 			fn_print_nl "* apiurl: ${apiurl}"
 			fn_print_nl "* remotebuildfilename: ${remotebuildfilename}"
 			fn_print_nl "* remotebuildurl: ${remotebuildurl}"
+			fn_print_nl "* remotebuildhash: ${remotebuildhash}"
 			fn_print_nl "* remotebuild: ${remotebuild}"
 		fi
 	fi
@@ -177,6 +163,9 @@ if [ "${firstcommandname}" == "INSTALL" ]; then
 	fn_update_remotebuild
 	fn_update_dl
 else
+	# BrainBread requires both Steam app updates and GitHub package updates.
+	update_steamcmd.sh
+
 	fn_print_dots "Checking for update"
 	fn_print_dots "Checking for update: ${remotelocation}"
 	fn_script_log_info "Checking for update: ${remotelocation}"
