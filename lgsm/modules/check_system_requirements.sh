@@ -25,12 +25,16 @@ elif [ "${shortname}" == "bt" ]; then
 	ramrequirementgb="1"
 elif [ "${shortname}" == "cc" ]; then
 	ramrequirementgb="1"
+elif [ "${shortname}" == "ce" ]; then
+	ramrequirementgb="8"
 elif [ "${shortname}" == "dayz" ]; then
 	ramrequirementgb="5"
 elif [ "${shortname}" == "dodr" ]; then
 	ramrequirementgb="2"
 elif [ "${shortname}" == "hw" ]; then
 	ramrequirementgb="3"
+elif [ "${shortname}" == "hyt" ]; then
+	ramrequirementgb="4"
 elif [ "${shortname}" == "mc" ]; then
 	ramrequirementgb="1"
 elif [ "${shortname}" == "pmc" ]; then
@@ -45,6 +49,10 @@ elif [ "${shortname}" == "pvr" ]; then
 	ramrequirementgb="1"
 elif [ "${shortname}" == "pz" ]; then
 	ramrequirementgb="3"
+elif [ "${shortname}" == "rsdw" ]; then
+	ramrequirementgb="2"
+elif [ "${shortname}" == "rwr" ]; then
+	ramrequirementgb="1"
 elif [ "${shortname}" == "rust" ]; then
 	ramrequirementgb="9"
 elif [ "${shortname}" == "sdtd" ]; then

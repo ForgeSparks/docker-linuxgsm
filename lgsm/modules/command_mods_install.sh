@@ -64,7 +64,13 @@ echo -e ""
 
 while :; do
 	echo -en "Enter an ${cyan}addon/mod${default} to ${green}install${default} (or exit to abort): "
-	read -r usermodselect
+	if ! read -r usermodselect && [ -z "${usermodselect}" ]; then
+		echo -e ""
+		fn_print_error_nl "Unable to read an addon/mod: no input available"
+		fn_script_log_error "Unable to read an addon/mod: no input available"
+		exitcode=2
+		core_exit.sh
+	fi
 	# Exit if user says exit or abort.
 	if [ "${usermodselect}" == "exit" ] || [ "${usermodselect}" == "abort" ]; then
 		core_exit.sh
@@ -109,6 +115,11 @@ if [ -f "${modsinstalledlistfullpath}" ]; then
 fi
 
 ## Installation.
+# CounterStrikeSharp requires Metamod:Source 2.0.
+if [ "${modcommand}" == "counterstrikesharp" ]; then
+	fn_mod_exist "metamodsource2"
+fi
+
 # If amxmodx check if metamod exists first
 if [ "${modcommand}" == "amxmodx" ]; then
 	fn_mod_exist "metamod"
@@ -122,16 +133,30 @@ if [ "${modcommand}" == "amxmodxcs" ] \
 	fn_mod_exist "amxmodx"
 fi
 
+# If nolobbyreservation check if sourcemod exists first as it is compiled using the SourceMod compiler
+if [ "${modcommand}" == "nolobbyreservation" ]; then
+	fn_mod_exist "sourcemod"
+fi
+
 fn_create_mods_dir
 fn_mods_clear_tmp_dir
 fn_mods_create_tmp_dir
 fn_mod_install_files
 fn_mod_lowercase
+# NoLobbyReservation is only distributed as source
+if [ "${modcommand}" == "nolobbyreservation" ]; then
+	fn_mod_compile_sourcemod_plugin "nolobbyreservation"
+fi
 fn_mod_create_filelist
 fn_mod_copy_destination
 fn_mod_add_list
 fn_mod_tidy_files_list
 fn_mods_clear_tmp_dir
+
+# Install the Metamod:Source search path for CS2.
+if [ "${modcommand}" == "metamodsource2" ]; then
+	fn_mod_install_gameinfo_gi_file
+fi
 
 # Create/modify existing liblist.gam file for Metamod
 if [ "${modcommand}" == "metamod" ]; then

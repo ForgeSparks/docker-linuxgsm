@@ -8,7 +8,8 @@
 commandname="START"
 commandaction="Starting"
 moduleselfname="$(basename "$(readlink -f "${BASH_SOURCE[0]}")")"
-addtimestamp="gawk '{ print strftime(\\\"[$logtimestampformat]\\\"), \\\$0 }'"
+logtimestampformat_tmux="${logtimestampformat//%/%%}"
+addtimestamp="gawk '{ print strftime(\"[$logtimestampformat_tmux]\"), \$0; fflush() }'"
 fn_firstcommand_set
 
 # This will allow the Jedi Knight 2 version to be printed in console on start.
@@ -16,6 +17,74 @@ fn_firstcommand_set
 fn_start_jk2() {
 	fn_start_tmux
 	TERM=screen tmux -L "${socketname}" end -t "${sessionname}" version ENTER > /dev/null 2>&1
+}
+
+# Hytale: after the server boots, check whether it logged in. If it didn't (no saved login, or one that
+# can't be decrypted, e.g. created on another machine or container), start the login, then show the
+# login URL and send it as an alert, so it can be approved without opening the console.
+# Prints the server console: the console log, or the tmux pane when console logging is off.
+fn_start_hyt_console() {
+	if [ "${consolelogging}" == "off" ]; then
+		TERM=screen tmux -L "${socketname}" capture-pane -p -J -S - -t "${sessionname}" 2> /dev/null
+	else
+		cat "${consolelog}" 2> /dev/null
+	fi
+}
+
+# Running With Rifles: the server starts in a lobby and runs a game mode once its start script is sent to the console.
+fn_start_rwr_script() {
+	for _ in {1..120}; do
+		if fn_start_hyt_console | grep -a -q "Game loaded"; then
+			TERM=screen tmux -L "${socketname}" send-keys -t "${sessionname}" "start_script ${startscript} ${startpackage}" ENTER
+			fn_script_log_info "Sent start_script ${startscript} ${startpackage}"
+			sleep 5
+			if fn_start_hyt_console | grep -a -q "script build failed"; then
+				fn_print_warn_nl "Running With Rifles could not start ${startpackage}/scripts/${startscript}. Check startpackage and startscript in ${configdirserver}"
+				fn_script_log_warn "Running With Rifles could not start ${startscript}"
+			fi
+			return
+		fi
+		sleep 1
+	done
+	fn_print_warn_nl "Running With Rifles did not finish loading, the game mode was not started"
+	fn_script_log_warn "Running With Rifles did not finish loading, start_script ${startscript} was not sent"
+}
+
+fn_start_hyt_login() {
+	hytloginurl=""
+	local hytloginsent="${hytloginpending}"
+	for _ in {1..120}; do
+		hytloginurl=$(fn_start_hyt_console | grep -a -oE "https://[^ ]*device/verify\?user_code=[A-Za-z0-9]+" | tail -1)
+		if [ -n "${hytloginurl}" ]; then
+			break
+		fi
+		# Logged in with the saved server login: nothing to do.
+		if fn_start_hyt_console | grep -a -q "Authentication successful"; then
+			fn_script_log_info "Hytale server login restored from saved credentials"
+			return
+		fi
+		# Booted without a usable login: ask the server to start one.
+		if [ "${hytloginsent}" != "1" ] && fn_start_hyt_console | grep -a -q "Hytale Server Booted" && fn_start_hyt_console | grep -a -q "No server tokens configured"; then
+			fn_script_log_info "Hytale server has no usable saved login, starting login"
+			TERM=screen tmux -L "${socketname}" send-keys -t "${sessionname}" "auth login device" ENTER
+			hytloginsent="1"
+		fi
+		sleep 1
+	done
+	echo -e ""
+	if [ -n "${hytloginurl}" ]; then
+		echo -e "${bold}${lightyellow}Hytale server login required${default}"
+		echo -e "Open the URL below in a browser and log in with a Hytale account that owns the game."
+		echo -e "The code expires in 10 minutes. This is only needed once; the server saves the login."
+		echo -e "${hytloginurl}"
+		fn_script_log_info "Hytale server login required: ${hytloginurl}"
+		alert="hytale-login"
+		alert.sh
+	else
+		fn_print_warn_nl "Hytale server login required, but no login URL was found in the console yet"
+		echo -e "* Run ./${selfname} send \"/auth login device\" and approve the code shown in the console."
+		fn_script_log_warn "Hytale server login required, but no login URL was found in the console"
+	fi
 }
 
 fn_start_tmux() {
@@ -47,6 +116,13 @@ fn_start_tmux() {
 	date '+%s' > "${lockdir:?}/${selfname}-starting.lock"
 
 	fn_reload_startparameters
+
+	# Hytale: with no saved server login file, have the server start its login (OAuth device code) on boot.
+	# A saved login that can't be used is handled after boot by fn_start_hyt_login.
+	if [ "${shortname}" == "hyt" ] && [ ! -f "${systemdir}/auth.enc" ]; then
+		startparameters="${startparameters} --boot-command 'auth login device'"
+		hytloginpending="1"
+	fi
 
 	# Create uid to ensure unique tmux socket name.
 	if [ ! -f "${datadir}/${selfname}.uid" ]; then
@@ -82,7 +158,7 @@ fn_start_tmux() {
 	if [ "${consolelogging}" == "on" ] || [ -z "${consolelogging}" ]; then
 		# timestamp will break mcb update check.
 		if [ "${logtimestamp}" == "on" ] && [ "${shortname}" != "mcb" ]; then
-			TERM=screen tmux -L "${socketname}" pipe-pane -o -t "${sessionname}" "exec bash -c \"cat | $addtimestamp\" >> '${consolelog}'"
+			TERM=screen tmux -L "${socketname}" pipe-pane -o -t "${sessionname}" "exec ${addtimestamp} >> '${consolelog}'"
 		else
 			TERM=screen tmux -L "${socketname}" pipe-pane -o -t "${sessionname}" "exec cat >> '${consolelog}'"
 		fi
@@ -160,6 +236,11 @@ fn_start_tmux() {
 			alert="restarted"
 			alert.sh
 		fi
+		if [ "${shortname}" == "hyt" ]; then
+			fn_start_hyt_login
+		elif [ "${shortname}" == "rwr" ]; then
+			fn_start_rwr_script
+		fi
 	fi
 	rm -f "${lgsmlogdir:?}/.${selfname}-tmux-error.tmp" 2> /dev/null
 	echo -en "\n"
@@ -191,10 +272,14 @@ core_logs.sh
 
 # Will check for updates if updateonstart is yes.
 if [ "${updateonstart}" == "yes" ] || [ "${updateonstart}" == "1" ] || [ "${updateonstart}" == "on" ]; then
-	exitbypass=1
 	unset updateonstart
-	command_update.sh
-	fn_firstcommand_reset
+	if ! (
+		unset exitbypass
+		command_update.sh
+	); then
+		fn_print_warn_nl "Update failed, starting ${servername} anyway"
+		fn_script_log_warn "Update failed, starting ${servername} anyway"
+	fi
 fi
 
 fn_print_dots "${servername}"

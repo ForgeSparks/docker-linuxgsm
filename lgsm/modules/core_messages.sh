@@ -222,7 +222,9 @@ fn_print_start_nl() {
 # Separator is different for details.
 fn_messages_separator() {
 	if [ "${commandname}" == "DETAILS" ]; then
-		printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' =
+		# Fall back to 80 columns when there is no terminal (e.g. cron or Docker); bash 5.3+ rejects an empty printf width.
+		local columns="${COLUMNS:-$(tput cols 2> /dev/null)}"
+		printf '%*s\n' "${columns:-80}" '' | tr ' ' =
 	else
 		echo -e "${bold}=================================${default}"
 		fn_sleep_time
@@ -318,7 +320,14 @@ fn_prompt_yn() {
 	fi
 
 	while true; do
-		read -e -i "${initial}" -p "${prompt}" -r yn
+		if ! read -e -i "${initial}" -p "${prompt}" -r yn && [ -z "${yn}" ]; then
+			echo -e ""
+			fn_print_error_nl "Unable to read an answer: no input available"
+			fn_script_log_error "Unable to read an answer to \"${1}\": no input available"
+			# shellcheck disable=SC2034 # Used by core_exit.sh.
+			exitcode=2
+			core_exit.sh
+		fi
 		case "${yn}" in
 			[Yy] | [Yy][Ee][Ss]) return 0 ;;
 			[Nn] | [Nn][Oo]) return 1 ;;
@@ -332,7 +341,9 @@ fn_prompt_message() {
 	while true; do
 		unset prompt
 		local prompt="$1"
-		read -e -p "${prompt}" -r answer
+		if ! read -e -p "${prompt}" -r answer && [ -z "${answer}" ]; then
+			return 1
+		fi
 		if fn_prompt_yn "Continue" Y; then
 			break
 		fi
