@@ -37,6 +37,8 @@ cmd_validate=("v;validate" "command_validate.sh" "Validate server files with Ste
 cmd_mods_install=("mi;mods-install" "command_mods_install.sh" "View and install available mods/addons.")
 cmd_mods_remove=("mr;mods-remove" "command_mods_remove.sh" "View and remove an installed mod/addon.")
 cmd_mods_update=("mu;mods-update" "command_mods_update.sh" "Update installed mods/addons.")
+# Server with Steam Workshop downloads.
+cmd_workshop_update=("wu;workshop-update" "command_workshop_update.sh" "Install and update Steam Workshop mods.")
 # Server specific.
 cmd_change_password=("pw;change-password" "command_ts3_server_pass.sh" "Change TS3 serveradmin password.")
 cmd_install_default_resources=("ir;install-default-resources" "command_install_resources_mta.sh" "Install the MTA default resources.")
@@ -66,11 +68,11 @@ currentopt=("${cmd_start[@]}" "${cmd_stop[@]}" "${cmd_restart[@]}" "${cmd_monito
 currentopt+=("${cmd_update_linuxgsm[@]}")
 
 # Exclude noupdate games here.
-if [ "${shortname}" == "jk2" ] || [ "${shortname}" == "etl" ] || [ "${engine}" != "idtech3" ]; then
+if [ "${shortname}" == "jk2" ] || [ "${shortname}" == "jk3" ] || [ "${shortname}" == "etl" ] || [ "${engine}" != "idtech3" ]; then
 	if [ "${shortname}" != "bf1942" ] && [ "${shortname}" != "bfv" ] && [ "${engine}" != "idtech2" ] && [ "${engine}" != "iw2.0" ] && [ "${engine}" != "iw3.0" ] && [ "${engine}" != "quake" ] && [ "${shortname}" != "samp" ] && [ "${shortname}" != "ut2k4" ]; then
 		currentopt+=("${cmd_update[@]}" "${cmd_check_update[@]}")
-		# force update for SteamCMD or Multi Theft Auto only.
-		if [ "${appid}" ] || [ "${shortname}" == "mta" ]; then
+		# force update for SteamCMD, Multi Theft Auto or Hytale only.
+		if [ "${appid}" ] || [ "${shortname}" == "mta" ] || [ "${shortname}" == "hyt" ]; then
 			currentopt+=("${cmd_force_update[@]}")
 		fi
 	fi
@@ -137,8 +139,13 @@ if [ "${shortname}" == "squad" ]; then
 fi
 
 ## Mods commands.
-if [ "${engine}" == "source" ] || [ "${shortname}" == "rust" ] || [ "${shortname}" == "hq" ] || [ "${shortname}" == "sdtd" ] || [ "${shortname}" == "cs" ] || [ "${shortname}" == "dod" ] || [ "${shortname}" == "tfc" ] || [ "${shortname}" == "ns" ] || [ "${shortname}" == "ts" ] || [ "${shortname}" == "hldm" ] || [ "${shortname}" == "vh" ]; then
+if [ "${engine}" == "source" ] || [ "${shortname}" == "cs2" ] || [ "${shortname}" == "rust" ] || [ "${shortname}" == "hq" ] || [ "${shortname}" == "sdtd" ] || [ "${shortname}" == "cs" ] || [ "${shortname}" == "dod" ] || [ "${shortname}" == "tfc" ] || [ "${shortname}" == "ns" ] || [ "${shortname}" == "ts" ] || [ "${shortname}" == "hldm" ] || [ "${shortname}" == "vh" ]; then
 	currentopt+=("${cmd_mods_install[@]}" "${cmd_mods_remove[@]}" "${cmd_mods_update[@]}")
+fi
+
+## Workshop commands.
+if [ "${shortname}" == "arma3" ] || [ "${shortname}" == "dayz" ] || [ "${shortname}" == "bt" ] || [ "${shortname}" == "col" ] || [ "${shortname}" == "hw" ] || [ "${shortname}" == "l4d2" ] || [ "${shortname}" == "ohd" ] || [ "${shortname}" == "sb" ] || [ "${shortname}" == "squad" ] || [ "${shortname}" == "squad44" ] || [ "${shortname}" == "sol" ] || [ "${shortname}" == "st" ]; then
+	currentopt+=("${cmd_workshop_update[@]}")
 fi
 
 ## Installer.
