@@ -256,7 +256,23 @@ fn_list_config_locations() {
 	echo -e "Config documentation: ${italic}https://docs.linuxgsm.com/configuration${default}"
 }
 
-if [ "${shortname}" == "sdtd" ]; then
+if [ "${shortname}" == "luanti" ]; then
+	fn_check_cfgdir
+	if [ ! -e "${servercfgfullpath}" ] && [ ! -L "${servercfgfullpath}" ]; then
+		cp "${serverfiles}/${servercfgdefault}" "${servercfgfullpath}"
+		{
+			echo "server_name = LinuxGSM"
+			echo "name = admin"
+			echo "server_announce = false"
+			echo "bind_address = ${ip}"
+			echo "max_users = 20"
+		} >> "${servercfgfullpath}"
+	fi
+	fn_list_config_locations
+elif [ "${shortname}" == "orar" ]; then
+	fn_check_cfgdir
+	fn_list_config_locations
+elif [ "${shortname}" == "sdtd" ]; then
 	fn_default_config_local
 	fn_list_config_locations
 elif [ "${shortname}" == "ac" ]; then
@@ -327,6 +343,11 @@ elif [ "${shortname}" == "bfv" ]; then
 	fn_list_config_locations
 elif [ "${shortname}" == "bs" ]; then
 	array_configs+=(server.cfg)
+	fn_default_config_remote
+	fn_set_config_vars
+	fn_list_config_locations
+elif [ "${shortname}" == "bfe" ]; then
+	array_configs+=(config.json)
 	fn_default_config_remote
 	fn_set_config_vars
 	fn_list_config_locations
@@ -482,6 +503,11 @@ elif [ "${shortname}" == "fctr" ]; then
 	fn_default_config_remote
 	fn_set_config_vars
 	fn_list_config_locations
+elif [ "${shortname}" == "fivem" ]; then
+	array_configs+=(server.cfg)
+	fn_default_config_remote
+	fn_set_config_vars
+	fn_list_config_locations
 elif [ "${shortname}" == "fof" ]; then
 	array_configs+=(server.cfg)
 	fn_default_config_remote
@@ -492,7 +518,7 @@ elif [ "${shortname}" == "gmod" ]; then
 	fn_default_config_remote
 	fn_set_config_vars
 	fn_list_config_locations
-elif [ "${shortname}" == "hldm" ]; then
+elif [ "${shortname}" == "hldm" ] || [ "${shortname}" == "hlwon" ] || [ "${shortname}" == "cswon" ]; then
 	array_configs+=(server.cfg)
 	fn_default_config_remote
 	fn_set_config_vars
@@ -518,6 +544,9 @@ elif [ "${shortname}" == "hl2dm" ]; then
 	fn_set_config_vars
 	fn_list_config_locations
 elif [ "${shortname}" == "hz" ]; then
+	# Config is generated on first run
+	:
+elif [ "${shortname}" == "hyt" ]; then
 	# Config is generated on first run
 	:
 elif [ "${shortname}" == "ins" ]; then
@@ -658,6 +687,11 @@ elif [ "${shortname}" == "jk2" ]; then
 	array_configs+=(server.cfg)
 	fn_default_config_remote
 	fn_set_config_vars
+elif [ "${shortname}" == "jk3" ]; then
+	array_configs+=(server.cfg)
+	fn_default_config_remote
+	fn_set_config_vars
+	fn_list_config_locations
 elif [ "${shortname}" == "qw" ]; then
 	array_configs+=(server.cfg)
 	fn_default_config_remote
@@ -665,6 +699,11 @@ elif [ "${shortname}" == "qw" ]; then
 	fn_list_config_locations
 elif [ "${shortname}" == "ricochet" ]; then
 	array_configs+=(server.cfg)
+	fn_default_config_remote
+	fn_set_config_vars
+	fn_list_config_locations
+elif [ "${shortname}" == "rsdw" ]; then
+	array_configs+=(DedicatedServer.ini)
 	fn_default_config_remote
 	fn_set_config_vars
 	fn_list_config_locations
@@ -677,7 +716,7 @@ elif [ "${shortname}" == "rust" ]; then
 	array_configs+=(server.cfg)
 	fn_default_config_remote
 	fn_list_config_locations
-elif [ "${shortname}" == "scpsl" ] || [ "${shortname}" == "scpslsm" ]; then
+elif [ "${shortname}" == "scpsl" ]; then
 	array_configs+=(config_gameplay.txt config_localadmin.txt)
 	fn_default_config_remote
 	fn_set_config_vars
@@ -706,6 +745,9 @@ elif [ "${shortname}" == "squad" ]; then
 	array_configs+=(Admins.cfg Bans.cfg License.cfg Server.cfg Rcon.cfg)
 	fn_default_config_remote
 	fn_set_config_vars
+	fn_list_config_locations
+elif [ "${shortname}" == "rwr" ]; then
+	fn_default_config_local
 	fn_list_config_locations
 elif [ "${shortname}" == "sb" ]; then
 	array_configs+=(starbound_server.config)
@@ -778,6 +820,11 @@ elif [ "${shortname}" == "ut" ]; then
 	fn_list_config_locations
 elif [ "${shortname}" == "ut2k4" ]; then
 	array_configs+=(UT2004.ini)
+	fn_default_config_remote
+	fn_set_config_vars
+	fn_list_config_locations
+elif [ "${shortname}" == "ut3" ]; then
+	array_configs+=(UTGame.ini UTWeb.ini UTEngine.ini)
 	fn_default_config_remote
 	fn_set_config_vars
 	fn_list_config_locations

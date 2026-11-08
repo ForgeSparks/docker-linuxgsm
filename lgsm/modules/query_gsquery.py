@@ -1,5 +1,4 @@
 #! /usr/bin/env python3
-# -*- coding: utf-8 -*-
 # LinuxGSM query_gsquery.py module
 # Author: Daniel Gibbs
 # Contributors: https://linuxgsm.com/contrib
@@ -14,6 +13,7 @@ import sys
 
 engine_types = (
     "protocol-valve",
+    "protocol-valve-won",
     "protocol-quake2",
     "protocol-quake3",
     "protocol-gamespy1",
@@ -35,6 +35,7 @@ class GSQuery:
     default_buffer_length = 1024
     sourcequery = (
         "protocol-valve",
+        "protocol-valve-won",
         "avalanche3.0",
         "barotrauma",
         "madness",
@@ -65,9 +66,12 @@ class GSQuery:
         """Create a query instance from parsed CLI args."""
 
         self.argument = arguments
-        #
         if self.argument.engine in self.sourcequery:
-            self.query_prompt_string = b"\xff\xff\xff\xffTSource Engine Query\0"
+            self.query_prompt_string = (
+                b"\xff\xff\xff\xffdetails\0"
+                if self.argument.engine == "protocol-valve-won"
+                else b"\xff\xff\xff\xffTSource Engine Query\0"
+            )
         elif self.argument.engine in self.idtech2query:
             self.query_prompt_string = b"\xff\xff\xff\xffstatus\x00"
         elif self.argument.engine in self.idtech3query:
@@ -135,12 +139,17 @@ class GSQuery:
         # Receive.
         try:
             self.response = connection.recv(self.default_buffer_length)
-        except socket.error:
+        except OSError:
             self.fatal_error("Unable to receive", 2)
         connection.close()
         # Response.
         if self.response is None:
             self.fatal_error("No response", 3)
+        if self.argument.engine == "protocol-valve-won" and (
+            not self.response.startswith(b"\xff\xff\xff\xffm")
+            or len(self.response.split(b"\0")) < 7
+        ):
+            self.fatal_error("Invalid WON server response", 3)
         if len(self.response) < 5:
             sys.exit("Short response.", 3)
         else:

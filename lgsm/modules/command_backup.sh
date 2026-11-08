@@ -12,6 +12,9 @@ fn_firstcommand_set
 
 # Trap to remove lockfile on quit.
 fn_backup_trap() {
+	if [ "$(type -t fn_stop_warn_players_cancel)" == "function" ]; then
+		fn_stop_warn_players_cancel
+	fi
 	echo -e ""
 	echo -en "backup ${backupname}.${compressext}..."
 	fn_print_canceled_eol_nl
@@ -29,8 +32,10 @@ fn_backup_trap() {
 
 # Check if a backup is pending or has been aborted using backup.lock.
 fn_backup_check_lockfile() {
-	# Remove stale lockfile.
-	if [ -f "${lockdir}/backup.lock" ]; then
+	# Remove stale lockfile, unless a long backup is still running.
+	local backupsrunning
+	backupsrunning="$(pgrep -fc -u "$(id -u)" "^([^ ]*/)?bash ([^ ]*/)?${selfname} (backup|b)( |$)")"
+	if [ -f "${lockdir}/backup.lock" ] && [ "${backupsrunning:-0}" -le 1 ]; then
 		if [ "$(find "${lockdir}/backup.lock" -mmin +60)" ]; then
 			fn_print_dots "Lockfile found: "
 			fn_print_checking_eol
@@ -130,8 +135,52 @@ fn_select_compression() {
 	fi
 }
 
+# Game data kept outside rootdir, such as worlds saved under the home directory.
+fn_backup_extradirs() {
+	local candidates=()
+	local covered=() dir dirreal link coveredpath
+	backupextradirs=()
+	if [ "${shortname}" == "bt" ]; then
+		candidates+=("${XDG_DATA_HOME:-${HOME}/.local/share}/Daedalic Entertainment GmbH/Barotrauma")
+	elif [ "${shortname}" == "ct" ]; then
+		candidates+=("${serverfiles}DedicatedServerSave")
+	elif [ "${shortname}" == "dst" ]; then
+		candidates+=("${persistentstorageroot}")
+	elif [ "${shortname}" == "pz" ]; then
+		candidates+=("${HOME}/Zomboid")
+	elif [ "${shortname}" == "scpsl" ]; then
+		candidates+=("${HOME}/.config/SCP Secret Laboratory/config")
+	elif [ "${shortname}" == "sdtd" ]; then
+		candidates+=("${HOME}/.local/share/7DaysToDie/Saves")
+	fi
+	candidates+=("${savedir}" "${servercfgdir}")
+	covered+=("$(readlink -f "${rootdir}")")
+	while IFS= read -r link; do
+		covered+=("$(readlink -f "${link}")")
+	done < <(find "${rootdir}" -maxdepth 2 -type l 2> /dev/null)
+	for dir in "${candidates[@]}"; do
+		if [ -z "${dir}" ] || [ ! -d "${dir}" ]; then
+			continue
+		fi
+		dirreal="$(readlink -f "${dir}")"
+		for coveredpath in "${covered[@]}" "${backupextradirs[@]}"; do
+			if [[ "${dirreal}/" == "${coveredpath}/"* ]]; then
+				continue 2
+			fi
+		done
+		backupextradirs+=("${dirreal}")
+	done
+}
+
 # Compressing files.
 fn_backup_compression() {
+	fn_backup_extradirs
+	backupextras=()
+	for extradir in "${backupextradirs[@]}"; do
+		echo -e "* Including ${extradir}"
+		fn_script_log_info "Including ${extradir}"
+		backupextras+=(-C / "${extradir#/}")
+	done
 
 	fn_print_info "A total of ${rootdirduexbackup} will be compressed."
 	fn_script_log_info "A total of ${rootdirduexbackup} will be compressed: ${backupdir}/${backupname}.${compressext}"
@@ -139,16 +188,21 @@ fn_backup_compression() {
 	fn_script_log_info "Backup ${rootdirduexbackup} ${backupname}.${compressext}, in progress"
 	excludedir=$(fn_backup_relpath)
 
-	if [ ! -d "${excludedir}" ]; then
+	if [ ! -d "${rootdir}/${excludedir}" ]; then
 		fn_print_fail_nl "Problem identifying the previous backup directory for exclusion."
 		fn_script_log_fail "Problem identifying the previous backup directory for exclusion"
 		core_exit.sh
 	fi
 
+	backupexcludes=(--exclude "${excludedir}" --exclude "${lockdir}" --exclude "${tmpdir}")
+	if [[ "${backupdir}" == "${rootdir}/"* ]]; then
+		backupexcludes+=(--exclude "./${backupdir#"${rootdir}"/}")
+	fi
+
 	if [ -n "${compressflag}" ]; then
-		tar ${compressflag} -hcf "${backupdir}/${backupname}.${compressext}" -C "${rootdir}" --exclude "${excludedir}" --exclude "${lockdir}" --exclude "${tmpdir}" ./.
+		tar ${compressflag} -hcf "${backupdir}/${backupname}.${compressext}" "${backupexcludes[@]}" -C "${rootdir}" ./. "${backupextras[@]}"
 	else
-		tar -hcf "${backupdir}/${backupname}.${compressext}" -C "${rootdir}" --exclude "${excludedir}" --exclude "${lockdir}" --exclude "${tmpdir}" ./.
+		tar -hcf "${backupdir}/${backupname}.${compressext}" "${backupexcludes[@]}" -C "${rootdir}" ./. "${backupextras[@]}"
 	fi
 
 	exitcode=$?
@@ -164,6 +218,8 @@ fn_backup_compression() {
 		fn_script_log_pass "Backup created: ${backupname}.${compressext}, total size $(du -sh "${backupdir}/${backupname}.${compressext}" | awk '{print $1}')"
 		alert="backup"
 		alert.sh
+		# A postponed backup is complete.
+		rm -f "${lockdir:?}/${selfname}-backup-request.lock"
 	fi
 }
 

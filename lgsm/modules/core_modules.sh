@@ -8,7 +8,7 @@
 
 moduleselfname="$(basename "$(readlink -f "${BASH_SOURCE[0]}")")"
 
-modulesversion="v26.2.0"
+modulesversion="v26.5.0"
 
 # Core
 
@@ -181,6 +181,16 @@ command_wipe.sh() {
 	fn_fetch_module
 }
 
+command_workshop_update.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+install_fivem_license.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 install_squad_license.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
@@ -268,6 +278,11 @@ check_tmuxception.sh() {
 	fn_fetch_module
 }
 
+check_update_lock.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 check_version.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
@@ -288,6 +303,13 @@ mods_core.sh() {
 }
 
 mods_list.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+# Workshop
+
+workshop_core.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
 }
@@ -346,6 +368,11 @@ fix.sh() {
 	fn_fetch_module
 }
 
+fix_ahl.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 fix_ark.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
@@ -366,6 +393,16 @@ fix_av.sh() {
 	fn_fetch_module
 }
 
+fix_bf1942.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+fix_bfv.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 fix_bo.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
@@ -381,12 +418,47 @@ fix_cmw.sh() {
 	fn_fetch_module
 }
 
+fix_cod.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+fix_cod2.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+fix_coduo.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+fix_codwaw.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 fix_csgo.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
 }
 
+fix_cswon.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+fix_ct.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 fix_dst.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+fix_hlwon.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
 }
@@ -397,6 +469,11 @@ fix_hw.sh() {
 }
 
 fix_ins.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+fix_ios.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
 }
@@ -416,7 +493,17 @@ fix_mcb.sh() {
 	fn_fetch_module
 }
 
+fix_mohaa.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 fix_mta.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+fix_nd.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
 }
@@ -501,6 +588,11 @@ fix_tf2.sh() {
 	fn_fetch_module
 }
 
+fix_ts.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 fix_ts3.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
@@ -526,7 +618,17 @@ fix_ut3.sh() {
 	fn_fetch_module
 }
 
+fix_ut99.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 fix_vh.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+fix_vs.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
 }
@@ -680,7 +782,22 @@ update_fctr.sh() {
 	fn_fetch_module
 }
 
+update_fivem.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+update_hyt.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 update_jk2.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+update_jk3.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
 }
@@ -700,7 +817,17 @@ update_mta.sh() {
 	fn_fetch_module
 }
 
+update_openra.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 update_pmc.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+update_qw.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
 }
@@ -720,7 +847,17 @@ update_ut99.sh() {
 	fn_fetch_module
 }
 
+update_bfe.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
 update_bb.sh() {
+	modulefile="${FUNCNAME[0]}"
+	fn_fetch_module
+}
+
+update_luanti.sh() {
 	modulefile="${FUNCNAME[0]}"
 	fn_fetch_module
 }
